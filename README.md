@@ -1,110 +1,53 @@
-# FHEVM Hardhat Template
+# FHE Private Wallet – Logic Prototype on Zama FHEVM (Sepolia)
 
-A Hardhat-based template for developing Fully Homomorphic Encryption (FHE) enabled Solidity smart contracts using the
-FHEVM protocol by Zama.
+This repo is a logic build for a private payment wallet on Zama FHEVM Sepolia.
 
-## Quick Start
+Balances and payment amounts are stored as encrypted `euint64` values inside
+`FHEPrivateWallet`, while decryption happens offchain through the Zama relayer
+SDK and FHEVM client library.
 
-For detailed instructions see:
-[FHEVM Hardhat Quick Start Tutorial](https://docs.zama.ai/protocol/solidity-guides/getting-started/quick-start-tutorial)
+The current flow covers:
 
-### Prerequisites
+- Encrypted balances per address
+- Encrypted deposits
+- Encrypted private payments (`privatePay`) that debit the encrypted balance
+- A simple withdrawal pattern that sends a private payment to a fixed cashier
+- A CLI script that runs the full encrypted flow against the deployed contract
+- A Telegram bot that exposes `/balance`, `/deposit`, `/pay`, and `/withdraw`
 
-- **Node.js**: Version 20 or higher
-- **npm or yarn/pnpm**: Package manager
-
-### Installation
-
-1. **Install dependencies**
-
-   ```bash
-   npm install
-   ```
-
-2. **Set up environment variables**
-
-   ```bash
-   npx hardhat vars set MNEMONIC
-
-   # Set your Infura API key for network access
-   npx hardhat vars set INFURA_API_KEY
-
-   # Optional: Set Etherscan API key for contract verification
-   npx hardhat vars set ETHERSCAN_API_KEY
-   ```
-
-3. **Compile and test**
-
-   ```bash
-   npm run compile
-   npm run test
-   ```
-
-4. **Deploy to local network**
-
-   ```bash
-   # Start a local FHEVM-ready node
-   npx hardhat node
-   # Deploy to local network
-   npx hardhat deploy --network localhost
-   ```
-
-5. **Deploy to Sepolia Testnet**
-
-   ```bash
-   # Deploy to Sepolia
-   npx hardhat deploy --network sepolia
-   # Verify contract on Etherscan
-   npx hardhat verify --network sepolia <CONTRACT_ADDRESS>
-   ```
-
-6. **Test on Sepolia Testnet**
-
-   ```bash
-   # Once deployed, you can run a simple test on Sepolia.
-   npx hardhat test --network sepolia
-   ```
-
-## 📁 Project Structure
-
-```
-fhevm-hardhat-template/
-├── contracts/           # Smart contract source files
-│   └── FHECounter.sol   # Example FHE counter contract
-├── deploy/              # Deployment scripts
-├── tasks/               # Hardhat custom tasks
-├── test/                # Test files
-├── hardhat.config.ts    # Hardhat configuration
-└── package.json         # Dependencies and scripts
-```
-
-## 📜 Available Scripts
-
-| Script             | Description              |
-| ------------------ | ------------------------ |
-| `npm run compile`  | Compile all contracts    |
-| `npm run test`     | Run all tests            |
-| `npm run coverage` | Generate coverage report |
-| `npm run lint`     | Run linting checks       |
-| `npm run clean`    | Clean build artifacts    |
-
-## 📚 Documentation
-
-- [FHEVM Documentation](https://docs.zama.ai/fhevm)
-- [FHEVM Hardhat Setup Guide](https://docs.zama.ai/protocol/solidity-guides/getting-started/setup)
-- [FHEVM Testing Guide](https://docs.zama.ai/protocol/solidity-guides/development-guide/hardhat/write_test)
-- [FHEVM Hardhat Plugin](https://docs.zama.ai/protocol/solidity-guides/development-guide/hardhat)
-
-## 📄 License
-
-This project is licensed under the BSD-3-Clause-Clear License. See the [LICENSE](LICENSE) file for details.
-
-## 🆘 Support
-
-- **GitHub Issues**: [Report bugs or request features](https://github.com/zama-ai/fhevm/issues)
-- **Documentation**: [FHEVM Docs](https://docs.zama.ai)
-- **Community**: [Zama Discord](https://discord.gg/zama)
+All of this has been tested end-to-end against the FHEVM Sepolia testnet with
+the official Hardhat template and relayer SDK.
 
 ---
 
-**Built with ❤️ by the Zama team**
+## 1. Deployments
+
+**Network:** Sepolia (Zama FHEVM RPC + relayer)
+
+- `FHEPrivateWallet`  
+  Address: `0xf8365cb4e47EbdF14bc57880a41eD156Eae481A0`
+
+- `UsdFheToken` (plain ERC-20 used as a test stablecoin)  
+  Address: `0x15Bf4B782Ac42d5EB7fBd3aEbb9736b4e2C625bd`  
+  Note: transfers of `usdFHE` are not encrypted; it behaves like a normal ERC-20.
+  The encrypted ledger currently lives only inside `FHEPrivateWallet`.
+
+**Key actors**
+
+- Signer / demo account: `0x303d219C7e04D6872b0dc784D074078e94D78342`
+- Cashier (withdrawal target): `0x5d8668cADB497D62d62C1FF8AFF801E8151E849F`
+
+---
+
+## 2. Environment variables
+
+### 2.1 Root `.env` (project root)
+
+Used by Hardhat and the CLI test `Test.mjs`:
+
+```bash
+SEPOLIA_RPC_URL="https://sepolia.infura.io/v3/<INFURA_KEY>"
+PRIVATE_KEY=0x<PRIVATE_KEY_OF_SIGNER>
+CONTRACT_ADDRESS=0xf8365cb4e47EbdF14bc57880a41eD156Eae481A0
+CASHIER_ADDRESS=0x5d8668cADB497D62d62C1FF8AFF801E8151E849F
+# USD_FHE_ADDRESS=0x15Bf4B782Ac42d5EB7fBd3aEbb9736b4e2C625bd

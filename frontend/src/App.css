@@ -1,0 +1,88 @@
+/* frontend/src/App.css */
+:root {
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "SF Pro Text",
+    sans-serif;
+  color-scheme: dark;
+}
+
+body {
+  margin: 0;
+  background: #020617;
+  color: #e5e7eb;
+}
+
+.app-root {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 2.5rem 1.5rem 3rem;
+}
+
+.hero {
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+.hero h1 {
+  font-size: 2.1rem;
+  margin-bottom: 0.3rem;
+}
+
+.hero p {
+  color: #9ca3af;
+  font-size: 0.95rem;
+}
+
+.content {
+  width: 100%;
+  max-width: 880px;
+  display: flex;
+  flex-direction: column;
+  gap: 1.4rem;
+}
+
+.card {
+  background: #020617;
+  border: 1px solid #1f2937;
+  border-radius: 0.9rem;
+  padding: 1.4rem 1.5rem;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.45);
+}
+
+.card h2 {
+  font-size: 1.1rem;
+  margin: 0 0 0.6rem;
+}
+
+.card ul,
+.card ol {
+  margin: 0 0 0.8rem 1.2rem;
+  padding: 0;
+  font-size: 0.95rem;
+}
+
+.address-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  margin-bottom: 0.5rem;
+  font-size: 0.92rem;
+}
+
+.address-row span {
+  color: #9ca3af;
+}
+
+.address-row code {
+  background: #020617;
+  border-radius: 0.35rem;
+  padding: 0.25rem 0.4rem;
+  font-size: 0.82rem;
+  word-break: break-all;
+}
+
+.note {
+  font-size: 0.85rem;
+  color: #9ca3af;
+}
