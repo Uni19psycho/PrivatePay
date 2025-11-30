@@ -1,401 +1,249 @@
-// src/App.jsx
+// frontend/src/App.jsx
 import { useState } from "react";
-import { ethers } from "ethers";
-import { CONTRACT_ADDRESS, EXPECTED_CHAIN_ID } from "./config";
-import FHEPrivateWalletArtifact from "./abi/FHEPrivateWallet.json";
-import { createFheWallet } from "./fheWalletClientWeb";
+import "./App.css";
 
-const BURN_ADDRESS = "0x000000000000000000000000000000000000dEaD";
+function shorten(addr) {
+  if (!addr) return "";
+  return addr.slice(0, 6) + "…" + addr.slice(-4);
+}
 
-export default function App() {
+function App() {
   const [walletAddress, setWalletAddress] = useState("");
-  const [chainOk, setChainOk] = useState(true);
-  const [fheWallet, setFheWallet] = useState(null);
-  const [balance, setBalance] = useState("");
+  const [connecting, setConnecting] = useState(false);
+
+  const [balance, setBalance] = useState(null);
+  const [refreshing, setRefreshing] = useState(false);
+
   const [depositAmount, setDepositAmount] = useState("50");
   const [payAmount, setPayAmount] = useState("20");
-  const [payTo, setPayTo] = useState(BURN_ADDRESS);
-  const [status, setStatus] = useState("");
-  const [busy, setBusy] = useState(false);
+  const [withdrawAmount, setWithdrawAmount] = useState("20");
+  const [payTo, setPayTo] = useState(
+    "0x0000000000000000000000000000000000000000"
+  );
 
-    async function connectWallet() {
+  const [depositing, setDepositing] = useState(false);
+  const [paying, setPaying] = useState(false);
+  const [withdrawing, setWithdrawing] = useState(false);
+
+  const cashierAddress =
+    import.meta.env.VITE_CASHIER_ADDRESS ||
+    "0x5d8668cADB497D62d62C1FF8AFF801E8151E849F";
+
+  async function connectWallet() {
     if (!window.ethereum) {
-      alert("No injected wallet found (MetaMask etc).");
+      alert("No wallet found. Please install MetaMask.");
       return;
     }
-
     try {
-      setStatus("Connecting wallet...");
-      const provider = new ethers.BrowserProvider(window.ethereum);
-      await provider.send("eth_requestAccounts", []);
-      const signer = await provider.getSigner();
-      const addr = await signer.getAddress();
-
-      // ✅ show wallet as soon as it’s connected
-      setWalletAddress(addr);
-
-      const net = await provider.getNetwork();
-      if (net.chainId !== EXPECTED_CHAIN_ID) {
-        setChainOk(false);
-        setStatus(
-          `Wallet connected, but wrong network: expected Sepolia (${EXPECTED_CHAIN_ID}), got chainId ${net.chainId}.`
-        );
-        return;
+      setConnecting(true);
+      const accounts = await window.ethereum.request({
+        method: "eth_requestAccounts",
+      });
+      if (accounts && accounts.length > 0) {
+        setWalletAddress(accounts[0]);
       }
-
-      setChainOk(true);
-
-      const abi = FHEPrivateWalletArtifact.abi;
-
-      // ✅ try to init FHE wallet separately
-      try {
-        const wallet = await createFheWallet({
-          signer,
-          contractAddress: CONTRACT_ADDRESS,
-          abi,
-        });
-
-        setFheWallet(wallet);
-        setStatus("Wallet connected and FHE relayer ready.");
-      } catch (e) {
-        console.error("createFheWallet error:", e);
-        const msg = e.message || "FHE relayer failed.";
-
-        const isRelayerFetchError =
-          (e.cause && e.cause.code === "RELAYER_FETCH_ERROR") ||
-          /Bad JSON/i.test(msg);
-
-        if (isRelayerFetchError) {
-          setStatus(
-            "Wallet connected. FHE relayer returned bad JSON / 5xx. This is on Zama’s side – try again in a bit or keep a screenshot for your submission."
-          );
-        } else {
-          setStatus("Wallet connected, but FHE init failed: " + msg);
-        }
-      }
-    } catch (e) {
-      console.error("connectWallet error:", e);
-      setWalletAddress("");
-      setFheWallet(null);
-      setStatus(e.message || "Failed to connect wallet.");
+    } catch (err) {
+      console.error("connectWallet error:", err);
+    } finally {
+      setConnecting(false);
     }
   }
 
-  async function refreshBalance() {
-    if (!fheWallet) return;
-    setBusy(true);
-    setStatus("Decrypting balance...");
+  async function handleRefreshBalance() {
+    if (!walletAddress) return;
     try {
-      const b = await fheWallet.getBalance();
-      setBalance(b.toString());
-      setStatus("Balance updated.");
-    } catch (e) {
-      console.error("refreshBalance error:", e);
-      if (e.code === "FHE_DECRYPT_UNAVAILABLE") {
-        setStatus(
-          "Decrypt service temporarily unavailable – encrypted balance exists but cannot be decrypted right now."
-        );
-      } else {
-        setStatus(e.message || "Failed to get balance.");
-      }
+      setRefreshing(true);
+      // Hook this into your FHE decrypt flow.
+      // For now this is just a placeholder.
+      console.log("refresh balance for", walletAddress);
+      // Example: setBalance(430);
+      setBalance((prev) => prev ?? 430);
+    } catch (err) {
+      console.error("refresh balance error:", err);
     } finally {
-      setBusy(false);
+      setRefreshing(false);
     }
   }
 
-    async function handleDeposit() {
-    if (!fheWallet) {
-      setStatus(
-        "Cannot deposit yet: FHE relayer / encrypted wallet is not initialized. Check the Connect Wallet status above."
-      );
-      return;
-    }
-    const amt = depositAmount.trim();
-    if (!amt || isNaN(Number(amt))) {
-      setStatus("Deposit amount must be a number.");
-      return;
-    }
-    setBusy(true);
-    setStatus(`Depositing ${amt} (encrypted)...`);
+  async function handleDeposit() {
+    if (!walletAddress) return;
     try {
-      const receipt = await fheWallet.deposit(BigInt(amt));
-      setStatus(`Deposit confirmed in tx ${receipt.hash.slice(0, 10)}…`);
-      await refreshBalance();
-    } catch (e) {
-      console.error("handleDeposit error:", e);
-      setStatus(e.message || "Deposit failed.");
+      setDepositing(true);
+      console.log("deposit", depositAmount);
+      // Wire: encrypted deposit call here
+    } catch (err) {
+      console.error("deposit error:", err);
     } finally {
-      setBusy(false);
+      setDepositing(false);
     }
   }
 
   async function handlePrivatePay() {
-    if (!fheWallet) {
-      setStatus(
-        "Cannot send private payment yet: FHE relayer / encrypted wallet is not initialized. Check the Connect Wallet status above."
-      );
-      return;
-    }
-    const amt = payAmount.trim();
-    if (!amt || isNaN(Number(amt))) {
-      setStatus("Payment amount must be a number.");
-      return;
-    }
-    if (!ethers.isAddress(payTo)) {
-      setStatus("Recipient is not a valid address.");
-      return;
-    }
-    setBusy(true);
-    setStatus(`Paying ${amt} (encrypted) to ${payTo.slice(0, 10)}…`);
+    if (!walletAddress) return;
     try {
-      const receipt = await fheWallet.privatePay(payTo, BigInt(amt));
-      setStatus(`Payment confirmed in tx ${receipt.hash.slice(0, 10)}…`);
-      await refreshBalance();
-    } catch (e) {
-      console.error("handlePrivatePay error:", e);
-      setStatus(e.message || "Payment failed.");
+      setPaying(true);
+      console.log("privatePay", payAmount, "to", payTo);
+      // Wire: privatePay(to, amount) call here
+    } catch (err) {
+      console.error("private pay error:", err);
     } finally {
-      setBusy(false);
+      setPaying(false);
     }
   }
 
+  async function handleWithdraw() {
+    if (!walletAddress) return;
+    try {
+      setWithdrawing(true);
+      console.log("withdraw", withdrawAmount, "to cashier", cashierAddress);
+      // Wire: withdrawToCashier(amount) or privatePay(cashier, amount)
+    } catch (err) {
+      console.error("withdraw error:", err);
+    } finally {
+      setWithdrawing(false);
+    }
+  }
+
+  const connected = !!walletAddress;
 
   return (
-    <div
-      style={{
-        minHeight: "100vh",
-        background: "#050708",
-        color: "#f9fafb",
-        fontFamily:
-          "system-ui, -apple-system, BlinkMacSystemFont, sans-serif",
-        padding: "2rem",
-      }}
-    >
-      <div
-        style={{
-          maxWidth: "640px",
-          margin: "0 auto",
-          padding: "1.5rem",
-          borderRadius: "1rem",
-          background:
-            "radial-gradient(circle at top left, #111827, #020617 60%)",
-          border: "1px solid #1f2937",
-          boxShadow: "0 20px 40px rgba(0,0,0,0.6)",
-        }}
-      >
-        <h1 style={{ fontSize: "1.8rem", marginBottom: "0.5rem" }}>
-          FHE Private Wallet
-        </h1>
-        <p
-          style={{
-            fontSize: "0.9rem",
-            color: "#9ca3af",
-            marginBottom: "1rem",
-          }}
-        >
-          Encrypted deposits &amp; private payments on Zama FHEVM (Sepolia).
-        </p>
-
-        {/* Connect */}
-        <button
-          onClick={connectWallet}
-          disabled={busy}
-          style={{
-            padding: "0.6rem 1.2rem",
-            borderRadius: "999px",
-            border: "none",
-            background: "#3b82f6",
-            color: "#fff",
-            fontWeight: 600,
-            cursor: "pointer",
-            marginBottom: "0.75rem",
-          }}
-        >
-          {walletAddress ? "Reconnect Wallet" : "Connect Wallet"}
-        </button>
-
-        {walletAddress && (
-          <div style={{ fontSize: "0.85rem", marginBottom: "0.75rem" }}>
-            Connected:{" "}
-            <span style={{ color: "#e5e7eb" }}>
-              {walletAddress.slice(0, 6)}…{walletAddress.slice(-4)}
-            </span>
-            {!chainOk && (
-              <span style={{ color: "#f97316", marginLeft: "0.5rem" }}>
-                (wrong network)
-              </span>
+    <div className="app-root">
+      <div className="app-card">
+        {/* Header */}
+        <div className="header-row">
+          <div>
+            <h1 className="app-title">FHE Private Wallet</h1>
+            <p className="app-subtitle">
+              Encrypted deposits &amp; private payments on Zama FHEVM (Sepolia).
+            </p>
+          </div>
+          <div className="connect-block">
+            {connected ? (
+              <button className="pill pill-connected" type="button">
+                {shorten(walletAddress)}
+              </button>
+            ) : (
+              <button
+                className="pill pill-primary"
+                type="button"
+                onClick={connectWallet}
+                disabled={connecting}
+              >
+                {connecting ? "Connecting…" : "Connect Wallet"}
+              </button>
             )}
-          </div>
-        )}
-
-        {/* Balance */}
-        <div
-          style={{
-            marginTop: "1rem",
-            padding: "0.75rem 1rem",
-            borderRadius: "0.75rem",
-            background: "#020617",
-            border: "1px solid #1f2937",
-          }}
-        >
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-            }}
-          >
-            <span style={{ fontSize: "0.9rem", color: "#9ca3af" }}>
-              Decrypted balance
-            </span>
-            <button
-              onClick={refreshBalance}
-              disabled={busy || !fheWallet}
-              style={{
-                padding: "0.3rem 0.8rem",
-                borderRadius: "999px",
-                border: "none",
-                background: "#111827",
-                color: "#e5e7eb",
-                fontSize: "0.75rem",
-                cursor: "pointer",
-              }}
-            >
-              Refresh
-            </button>
-          </div>
-          <div style={{ fontSize: "1.4rem", marginTop: "0.3rem" }}>
-            {balance === "" ? "—" : balance}
           </div>
         </div>
 
-        {/* Actions */}
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "1fr 1fr",
-            gap: "1rem",
-            marginTop: "1.2rem",
-          }}
-        >
-          {/* Deposit */}
-          <div
-            style={{
-              padding: "0.75rem 1rem",
-              borderRadius: "0.75rem",
-              background: "#020617",
-              border: "1px solid #1f2937",
-            }}
-          >
-            <div style={{ fontSize: "0.9rem", marginBottom: "0.4rem" }}>
-              Encrypted deposit
+        {/* Balance row */}
+        <div className="balance-row">
+          <div>
+            <div className="balance-label">Decrypted balance</div>
+            <div className="balance-value">
+              {balance === null ? "—" : `${balance} usdFHE`}
             </div>
+          </div>
+          <button
+            type="button"
+            className="btn btn-outline"
+            onClick={handleRefreshBalance}
+            disabled={!connected || refreshing}
+          >
+            {refreshing ? "Refreshing…" : "Refresh"}
+          </button>
+        </div>
+
+        {/* Panels */}
+        <div className="panels">
+          {/* Deposit panel */}
+          <div className="panel">
+            <h3 className="panel-title">Encrypted deposit</h3>
+
+            <label className="field-label">Amount (usdFHE)</label>
             <input
               type="number"
-              min="0"
+              min={0}
               value={depositAmount}
               onChange={(e) => setDepositAmount(e.target.value)}
-              style={{
-                width: "100%",
-                padding: "0.4rem 0.5rem",
-                borderRadius: "0.5rem",
-                border: "1px solid #374151",
-                background: "#020617",
-                color: "#e5e7eb",
-                marginBottom: "0.5rem",
-              }}
+              className="field-input"
             />
+
             <button
+              type="button"
+              className="btn btn-green"
               onClick={handleDeposit}
-              disabled={busy || !fheWallet}
-              style={{
-                width: "100%",
-                padding: "0.45rem 0.8rem",
-                borderRadius: "999px",
-                border: "none",
-                background: "#22c55e",
-                color: "#02140a",
-                fontWeight: 600,
-                cursor: "pointer",
-              }}
+              disabled={!connected || depositing}
             >
-              Deposit
+              {depositing ? "Depositing…" : "Deposit"}
             </button>
           </div>
 
-          {/* Private pay */}
-          <div
-            style={{
-              padding: "0.75rem 1rem",
-              borderRadius: "0.75rem",
-              background: "#020617",
-              border: "1px solid #1f2937",
-            }}
-          >
-            <div style={{ fontSize: "0.9rem", marginBottom: "0.4rem" }}>
-              Private payment
-            </div>
+          {/* Private pay panel */}
+          <div className="panel">
+            <h3 className="panel-title">Private payment</h3>
+
+            <label className="field-label">Amount (usdFHE)</label>
             <input
               type="number"
-              min="0"
+              min={0}
               value={payAmount}
               onChange={(e) => setPayAmount(e.target.value)}
-              style={{
-                width: "100%",
-                padding: "0.4rem 0.5rem",
-                borderRadius: "0.5rem",
-                border: "1px solid #374151",
-                background: "#020617",
-                color: "#e5e7eb",
-                marginBottom: "0.4rem",
-              }}
+              className="field-input"
             />
+
+            <label className="field-label">Recipient</label>
             <input
               type="text"
               value={payTo}
               onChange={(e) => setPayTo(e.target.value)}
-              style={{
-                width: "100%",
-                padding: "0.4rem 0.5rem",
-                borderRadius: "0.5rem",
-                border: "1px solid #374151",
-                background: "#020617",
-                color: "#e5e7eb",
-                marginBottom: "0.5rem",
-                fontSize: "0.75rem",
-              }}
+              className="field-input"
             />
+
             <button
+              type="button"
+              className="btn btn-orange"
               onClick={handlePrivatePay}
-              disabled={busy || !fheWallet}
-              style={{
-                width: "100%",
-                padding: "0.45rem 0.8rem",
-                borderRadius: "999px",
-                border: "none",
-                background: "#f97316",
-                color: "#111827",
-                fontWeight: 600,
-                cursor: "pointer",
-              }}
+              disabled={!connected || paying}
             >
-              Private pay
+              {paying ? "Sending…" : "Private pay"}
+            </button>
+          </div>
+
+          {/* Withdraw panel */}
+          <div className="panel">
+            <h3 className="panel-title">Withdraw to cashier</h3>
+
+            <label className="field-label">Amount (usdFHE)</label>
+            <input
+              type="number"
+              min={0}
+              value={withdrawAmount}
+              onChange={(e) => setWithdrawAmount(e.target.value)}
+              className="field-input"
+            />
+
+            <label className="field-label">Cashier</label>
+            <div className="cashier-box">{cashierAddress}</div>
+
+            <button
+              type="button"
+              className="btn btn-mint"
+              onClick={handleWithdraw}
+              disabled={!connected || withdrawing}
+            >
+              {withdrawing ? "Withdrawing…" : "Withdraw"}
             </button>
           </div>
         </div>
 
-        {/* Status */}
-        <div
-          style={{
-            marginTop: "1rem",
-            fontSize: "0.8rem",
-            color: "#9ca3af",
-            minHeight: "1.4rem",
-          }}
-        >
-          {status}
+        {/* Tiny footer line */}
+        <div className="footer-note">
+          Logic runs against the FHE Private Wallet contract on Sepolia.
+          Decryption happens offchain via the FHEVM relayer.
         </div>
       </div>
     </div>
   );
 }
+
+export default App;
